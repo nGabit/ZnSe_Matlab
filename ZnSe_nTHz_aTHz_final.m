@@ -1,12 +1,7 @@
 
-% Here I considered two options of calculation of nTHz. 
-%1st option: first I calculated aTHz  from equation 3 in book:X.-C. Zhang, J. Xu, Introduction
-%to THz Wave Photonics, after with the help of The Kramers-Kronig relation for the real part n(ω), this is refractive index in THz range. 
-%2nd option: aTHz was calculated by the same way in 1st method. refractive
-%index in THz was calculated by equation 3 of the same book
 clear; clc;
 cry = 7; % 0 - LN 3 - Gap 4 - GaAs  7 - ZnSe  2 - ZnTe 
-files = {'ref 9e3 avg_0', '9e3_0'}; 
+files = {'ref', 'ref raw'}; 
 ETHz = length(files);
 
 dataCells = cell(ETHz, 1);
@@ -21,13 +16,7 @@ Etsam = dataCells{2};   % the sample signal in time domain
 
 Eref = fft(Etref);
 Esam = fft(Etsam);
-phi_ref = angle(Eref);
-phi_sam = angle(Esam);
-delta_phi = - unwrap(phi_sam - phi_ref); %phase difference
-% Esam = abs(fft(Etsam)); %the magnitude spectrum for spectral analysis.
-% But for the calculation of nTHz and aTHz I used simple fft(Esam) fft(Etsam)and
-% fft(Etref).
-%sam = abs(fft(Etsam).^2);
+
 N = length(Etref);
 c0 = 3e8;
 lambda0 = 10.6e-6;
@@ -43,8 +32,20 @@ d = 1.0e-3;
 M = floor(N/2); 
 T = 300;
 dt = T/(N-1);
-freq = [0:N-1]'/T * 1e-12;
+freq = [0:N-1]'/T;
 time=Etref(:,1);
+
+
+
+phi_ref = angle(Eref);
+phi_sam = angle(Esam);
+delta_phi =  unwrap(phi_sam - phi_ref); %phase difference
+% Esam = abs(fft(Etsam)); %the magnitude spectrum for spectral analysis.
+% But for the calculation of nTHz and aTHz I used simple fft(Esam) fft(Etsam)and
+% fft(Etref).
+%sam = abs(fft(Etsam).^2);
+Eref(M:N)=0; 
+Esam(M:N)=0; 
 
 %  Calculate Phase Shift
 %Phase_shift = omega * Delta_t;  % Phase shift as a function of frequency
@@ -71,35 +72,36 @@ time=Etref(:,1);
 H1=Esam./Eref;
 H = Esam(:, 2) ./ Eref(:, 2);
 n = 1 + delta_phi(:,2)' * c0 ./ omega * d;
+%n = -(unwrap(angle(H1)))*c0./freq/2/pi/d+n0;
 k1 = log(4*n'./(abs(H).*(n'+1).^2))*c0./freq/2/pi/d; %k1- absorption index
 alpha = 2*2*pi*freq.*k1/c0; %absorption coefficient
 n_comp = n-i*k1;
 
 subplot(2,2,1);
-plot(time,Etref,time,Etsam);
+plot(time,[Etref(:, 2) Etsam(:,2)]);
 subplot(2,2,2);
-plot(freq,abs(Eref),freq,abs(Esam));
-
+plot(freq,[abs(Eref(:,2)) abs(Esam(:,2))]);
+axis([0 5 0 inf]);
 n_sg = sgolayfilt(n,2,5);
 alpha_sg = sgolayfilt(alpha,2,5);
 
 subplot(2,2,3);
-plot(freq,n,freq,n_sg);
+plot(freq,[n' n_sg']);
 
-axis([0.2 3 3 7]);
+
 
 subplot(2,2,4);
-plot(freq,alpha,freq,alpha_sg);
-axis([0.2 3 0 20]);
+plot(freq,[alpha alpha_sg]);
+axis([-1 5 -1 inf]);
 
 %% Export data for aTHz
 exportDataToFile('aTHz.txt', 'THz Frequency, THz\taTHz\n', freq,alpha);
 
 % Export data for nTHz
-exportDataToFile('nTHz.txt', 'THz Frequency, THz\tnTHz\n', freq, n);
-exportDataToFile('nTHz_sg.txt', 'THz Frequency, THz\tnTHz\n', freq, n_sg);
+exportDataToFile('nTHz.txt', 'THz Frequency, THz\tnTHz\n', freq, n');
+exportDataToFile('nTHz_sg.txt', 'THz Frequency, THz\tnTHz\n', freq, n_sg');
 exportDataToFile('aTHz_sg.txt', 'THz Frequency, THz\taTHz\n', freq, alpha_sg);
-exportDataToFile('Spectrum.txt', 'THz Frequency, THz\Spectrum\n', freq, Esam);
+exportDataToFile('Spectrum.txt', 'THz Frequency, THz\Spectrum\n', freq, abs(Esam(:,2)));
 % Define the common export function
 function exportDataToFile(filename, headers, col1, col2)
     % Open the file for writing
